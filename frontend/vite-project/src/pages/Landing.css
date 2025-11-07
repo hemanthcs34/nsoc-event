@@ -1,0 +1,18 @@
+/* Landing Page Container */
+
+.landing-page {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scroll Behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

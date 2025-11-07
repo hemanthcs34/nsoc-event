@@ -1,0 +1,173 @@
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import './QuizRunner.css';
+
+const QuizRunner = ({ questions, onComplete }) => {
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(120); // 2 minutes per question
+  const [answers, setAnswers] = useState([]);
+  const [isAnswered, setIsAnswered] = useState(false);
+
+  useEffect(() => {
+    if (timeLeft > 0 && !isAnswered) {
+      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+      return () => clearTimeout(timer);
+    } else if (timeLeft === 0 && !isAnswered) {
+      handleNext(true); // Auto-submit when time runs out
+    }
+  }, [timeLeft, isAnswered]);
+
+  const handleAnswerSelect = (index) => {
+    if (!isAnswered) {
+      setSelectedAnswer(index);
+    }
+  };
+
+  const handleNext = (autoSubmit = false) => {
+    const isCorrect = autoSubmit ? false : selectedAnswer === questions[currentQuestion].correctAnswer;
+    const newAnswers = [...answers, {
+      questionId: questions[currentQuestion].id,
+      selectedAnswer: autoSubmit ? null : selectedAnswer,
+      correct: isCorrect,
+      timeTaken: 120 - timeLeft
+    }];
+    setAnswers(newAnswers);
+
+    if (currentQuestion < questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+      setSelectedAnswer(null);
+      setTimeLeft(120);
+      setIsAnswered(false);
+    } else {
+      // Quiz complete
+      const correctCount = newAnswers.filter(a => a.correct).length;
+      const earnedAmount = correctCount * 100;
+      onComplete({
+        answers: newAnswers,
+        correctCount,
+        earnedAmount,
+        totalQuestions: questions.length
+      });
+    }
+  };
+
+  const handleSubmit = () => {
+    if (selectedAnswer !== null) {
+      setIsAnswered(true);
+      setTimeout(() => handleNext(), 1000); // Brief pause to show selection
+    }
+  };
+
+  const progress = ((currentQuestion + 1) / questions.length) * 100;
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+
+  return (
+    <div className="quiz-runner">
+      {/* Progress Bar */}
+      <div className="quiz-progress-bar">
+        <motion.div 
+          className="quiz-progress-fill"
+          initial={{ width: 0 }}
+          animate={{ width: `${progress}%` }}
+          transition={{ duration: 0.3 }}
+        />
+      </div>
+
+      {/* Header */}
+      <div className="quiz-header">
+        <div className="quiz-info">
+          <span className="quiz-question-number">
+            Question {currentQuestion + 1} / {questions.length}
+          </span>
+          <span className="quiz-category">
+            {questions[currentQuestion].category.toUpperCase()}
+          </span>
+        </div>
+        <div className={`quiz-timer ${timeLeft < 30 ? 'warning' : ''}`}>
+          <span className="timer-icon">⏱️</span>
+          <span className="timer-text">
+            {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+          </span>
+        </div>
+      </div>
+
+      {/* Question Card */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentQuestion}
+          initial={{ opacity: 0, x: 50 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -50 }}
+          transition={{ duration: 0.3 }}
+          className="quiz-question-card"
+        >
+          <h2 className="quiz-question-text">
+            {questions[currentQuestion].question}
+          </h2>
+
+          <div className="quiz-options">
+            {questions[currentQuestion].options.map((option, index) => (
+              <motion.button
+                key={index}
+                onClick={() => handleAnswerSelect(index)}
+                className={`quiz-option ${
+                  selectedAnswer === index ? 'selected' : ''
+                } ${
+                  isAnswered && index === questions[currentQuestion].correctAnswer
+                    ? 'correct'
+                    : isAnswered && selectedAnswer === index
+                    ? 'incorrect'
+                    : ''
+                }`}
+                whileHover={{ scale: isAnswered ? 1 : 1.02 }}
+                whileTap={{ scale: isAnswered ? 1 : 0.98 }}
+                disabled={isAnswered}
+              >
+                <span className="option-letter">
+                  {String.fromCharCode(65 + index)}
+                </span>
+                <span className="option-text">{option}</span>
+                {isAnswered && index === questions[currentQuestion].correctAnswer && (
+                  <span className="option-icon">✓</span>
+                )}
+                {isAnswered && selectedAnswer === index && index !== questions[currentQuestion].correctAnswer && (
+                  <span className="option-icon">✗</span>
+                )}
+              </motion.button>
+            ))}
+          </div>
+
+          <div className="quiz-actions">
+            <button
+              onClick={handleSubmit}
+              disabled={selectedAnswer === null || isAnswered}
+              className="quiz-submit-btn"
+            >
+              {isAnswered ? 'Moving to next...' : 'Submit Answer'}
+            </button>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Stats Footer */}
+      <div className="quiz-stats">
+        <div className="stat">
+          <span className="stat-label">Answered</span>
+          <span className="stat-value">{answers.length}</span>
+        </div>
+        <div className="stat">
+          <span className="stat-label">Correct</span>
+          <span className="stat-value correct">{answers.filter(a => a.correct).length}</span>
+        </div>
+        <div className="stat">
+          <span className="stat-label">Earned</span>
+          <span className="stat-value earned">₹{answers.filter(a => a.correct).length * 100}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default QuizRunner;

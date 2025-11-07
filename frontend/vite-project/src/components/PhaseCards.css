@@ -1,0 +1,310 @@
+/* Phase Cards Section */
+
+.phases-section {
+  position: relative;
+  padding: var(--spacing-xl) var(--spacing-lg);
+  z-index: 1;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+}
+
+.phases-container {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* Header */
+.phases-header {
+  text-align: center;
+  margin-bottom: var(--spacing-xl);
+}
+
+.phases-title {
+  font-family: var(--font-main);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 700;
+  margin: 0 0 var(--spacing-md);
+  letter-spacing: 2px;
+}
+
+.phases-subtitle {
+  font-size: clamp(1rem, 1.5vw, 1.25rem);
+  opacity: 0.8;
+  margin: 0;
+}
+
+/* Grid Layout */
+.phases-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-xl);
+}
+
+/* Phase Card */
+.phase-card {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.phase-card-inner {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.04),
+    rgba(255, 255, 255, 0.01)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: var(--spacing-xl);
+  position: relative;
+  backdrop-filter: blur(10px);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  transition: all var(--speed-normal) ease;
+}
+
+/* Phase Number Badge */
+.phase-number {
+  position: absolute;
+  top: var(--spacing-md);
+  right: var(--spacing-md);
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-main);
+  font-size: 1.25rem;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid;
+  opacity: 0.7;
+}
+
+/* Phase Icon */
+.phase-icon {
+  font-size: 3.5rem;
+  margin-bottom: var(--spacing-md);
+  filter: drop-shadow(0 0 20px currentColor);
+}
+
+/* Phase Title */
+.phase-title {
+  font-family: var(--font-main);
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 var(--spacing-sm);
+  letter-spacing: 1px;
+}
+
+/* Phase Tagline */
+.phase-tagline {
+  font-size: 1.1rem;
+  font-weight: 600;
+  font-style: italic;
+  margin: 0 0 var(--spacing-md);
+  opacity: 0.9;
+}
+
+/* Phase Description */
+.phase-description {
+  flex: 1;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0 0 var(--spacing-md);
+  opacity: 0.85;
+}
+
+/* Duration Badge */
+.phase-duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-family: var(--font-main);
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 1px solid;
+  align-self: flex-start;
+}
+
+.duration-icon {
+  font-size: 1.1rem;
+}
+
+/* Phase Glow Effect */
+.phase-glow {
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border-radius: 16px;
+  opacity: 0;
+  transition: opacity var(--speed-normal) ease;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Color Variants */
+
+/* Cyan Theme (Phase 1) */
+.phase-cyan .phase-card-inner {
+  border-color: rgba(0, 230, 255, 0.2);
+}
+
+.phase-cyan .phase-number {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.phase-cyan .phase-title {
+  color: var(--glow-blue);
+}
+
+.phase-cyan .phase-tagline {
+  color: var(--color-primary);
+}
+
+.phase-cyan .phase-duration {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: rgba(0, 230, 255, 0.1);
+}
+
+.phase-cyan .phase-glow {
+  box-shadow: 
+    0 0 40px rgba(0, 230, 255, 0.3),
+    0 0 80px rgba(0, 230, 255, 0.2),
+    inset 0 0 40px rgba(0, 230, 255, 0.1);
+}
+
+.phase-cyan:hover .phase-card-inner {
+  border-color: var(--color-primary);
+  box-shadow: 0 20px 60px rgba(0, 230, 255, 0.2);
+}
+
+.phase-cyan:hover .phase-glow {
+  opacity: 1;
+}
+
+/* Purple Theme (Phase 2) */
+.phase-purple .phase-card-inner {
+  border-color: rgba(123, 97, 255, 0.2);
+}
+
+.phase-purple .phase-number {
+  border-color: var(--glow-purple);
+  color: var(--glow-purple);
+}
+
+.phase-purple .phase-title {
+  color: var(--glow-purple);
+}
+
+.phase-purple .phase-tagline {
+  color: var(--glow-purple);
+}
+
+.phase-purple .phase-duration {
+  border-color: var(--glow-purple);
+  color: var(--glow-purple);
+  background: rgba(123, 97, 255, 0.1);
+}
+
+.phase-purple .phase-glow {
+  box-shadow: 
+    0 0 40px rgba(123, 97, 255, 0.3),
+    0 0 80px rgba(123, 97, 255, 0.2),
+    inset 0 0 40px rgba(123, 97, 255, 0.1);
+}
+
+.phase-purple:hover .phase-card-inner {
+  border-color: var(--glow-purple);
+  box-shadow: 0 20px 60px rgba(123, 97, 255, 0.2);
+}
+
+.phase-purple:hover .phase-glow {
+  opacity: 1;
+}
+
+/* Magenta Theme (Phase 3) */
+.phase-magenta .phase-card-inner {
+  border-color: rgba(255, 0, 122, 0.2);
+}
+
+.phase-magenta .phase-number {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.phase-magenta .phase-title {
+  color: var(--color-accent);
+}
+
+.phase-magenta .phase-tagline {
+  color: var(--color-accent);
+}
+
+.phase-magenta .phase-duration {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: rgba(255, 0, 122, 0.1);
+}
+
+.phase-magenta .phase-glow {
+  box-shadow: 
+    0 0 40px rgba(255, 0, 122, 0.3),
+    0 0 80px rgba(255, 0, 122, 0.2),
+    inset 0 0 40px rgba(255, 0, 122, 0.1);
+}
+
+.phase-magenta:hover .phase-card-inner {
+  border-color: var(--color-accent);
+  box-shadow: 0 20px 60px rgba(255, 0, 122, 0.2);
+}
+
+.phase-magenta:hover .phase-glow {
+  opacity: 1;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .phases-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
+  }
+
+  .phase-card-inner {
+    padding: var(--spacing-lg);
+  }
+
+  .phase-icon {
+    font-size: 2.5rem;
+  }
+
+  .phase-title {
+    font-size: 1.5rem;
+  }
+}
+
+/* Accessibility */
+.phase-card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
+  border-radius: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phase-card,
+  .phase-card-inner {
+    transition: none !important;
+  }
+}
