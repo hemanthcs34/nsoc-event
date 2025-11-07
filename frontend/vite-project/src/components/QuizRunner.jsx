@@ -21,14 +21,31 @@ const QuizRunner = ({ questions, onComplete }) => {
   const handleAnswerSelect = (index) => {
     if (!isAnswered) {
       setSelectedAnswer(index);
+      console.log('Selected answer:', index, 'Type:', typeof index);
+      console.log('Correct answer:', questions[currentQuestion].correctAnswer, 'Type:', typeof questions[currentQuestion].correctAnswer);
+      console.log('Are they equal?', index === questions[currentQuestion].correctAnswer);
+      console.log('Full question object:', questions[currentQuestion]);
     }
   };
 
   const handleNext = (autoSubmit = false) => {
-    const isCorrect = autoSubmit ? false : selectedAnswer === questions[currentQuestion].correctAnswer;
+    const correctAnswerIndex = Number(questions[currentQuestion].correctAnswer);
+    const selectedAnswerIndex = Number(selectedAnswer);
+    const isCorrect = autoSubmit ? false : selectedAnswerIndex === correctAnswerIndex;
+    
+    console.log('Checking answer:', {
+      selectedAnswer: selectedAnswerIndex,
+      selectedAnswerType: typeof selectedAnswerIndex,
+      correctAnswerIndex,
+      correctAnswerType: typeof correctAnswerIndex,
+      isCorrect,
+      rawCorrectAnswer: questions[currentQuestion].correctAnswer,
+      question: questions[currentQuestion].question
+    });
+    
     const newAnswers = [...answers, {
       questionId: questions[currentQuestion].id,
-      selectedAnswer: autoSubmit ? null : selectedAnswer,
+      selectedAnswer: autoSubmit ? null : selectedAnswerIndex,
       correct: isCorrect,
       timeTaken: 120 - timeLeft
     }];
@@ -55,7 +72,11 @@ const QuizRunner = ({ questions, onComplete }) => {
   const handleSubmit = () => {
     if (selectedAnswer !== null) {
       setIsAnswered(true);
-      setTimeout(() => handleNext(), 1000); // Brief pause to show selection
+      console.log('Answer submitted.');
+      console.log('Selected:', selectedAnswer, 'Correct:', questions[currentQuestion].correctAnswer);
+      console.log('Comparison:', selectedAnswer === questions[currentQuestion].correctAnswer);
+      console.log('Number Comparison:', Number(selectedAnswer) === Number(questions[currentQuestion].correctAnswer));
+      setTimeout(() => handleNext(), 2000); // Increased to 2 seconds to see the result
     }
   };
 
@@ -108,38 +129,64 @@ const QuizRunner = ({ questions, onComplete }) => {
           </h2>
 
           <div className="quiz-options">
-            {questions[currentQuestion].options.map((option, index) => (
-              <motion.button
-                key={index}
-                onClick={() => handleAnswerSelect(index)}
-                className={`quiz-option ${
-                  selectedAnswer === index ? 'selected' : ''
-                } ${
-                  isAnswered && index === questions[currentQuestion].correctAnswer
-                    ? 'correct'
-                    : isAnswered && selectedAnswer === index
-                    ? 'incorrect'
-                    : ''
-                }`}
-                whileHover={{ scale: isAnswered ? 1 : 1.02 }}
-                whileTap={{ scale: isAnswered ? 1 : 0.98 }}
-                disabled={isAnswered}
-              >
-                <span className="option-letter">
-                  {String.fromCharCode(65 + index)}
-                </span>
-                <span className="option-text">{option}</span>
-                {isAnswered && index === questions[currentQuestion].correctAnswer && (
-                  <span className="option-icon">✓</span>
-                )}
-                {isAnswered && selectedAnswer === index && index !== questions[currentQuestion].correctAnswer && (
-                  <span className="option-icon">✗</span>
-                )}
-              </motion.button>
-            ))}
+            {questions[currentQuestion].options.map((option, index) => {
+              const correctAnswerNum = Number(questions[currentQuestion].correctAnswer);
+              const isCorrectOption = index === correctAnswerNum;
+              const isSelectedOption = selectedAnswer === index;
+              
+              return (
+                <motion.button
+                  key={index}
+                  onClick={() => handleAnswerSelect(index)}
+                  className={`quiz-option ${
+                    isSelectedOption ? 'selected' : ''
+                  } ${
+                    isAnswered && isCorrectOption
+                      ? 'correct'
+                      : isAnswered && isSelectedOption && !isCorrectOption
+                      ? 'incorrect'
+                      : ''
+                  }`}
+                  whileHover={{ scale: isAnswered ? 1 : 1.02 }}
+                  whileTap={{ scale: isAnswered ? 1 : 0.98 }}
+                  disabled={isAnswered}
+                >
+                  <span className="option-letter">
+                    {String.fromCharCode(65 + index)}
+                  </span>
+                  <span className="option-text">{option}</span>
+                  {isAnswered && isCorrectOption && (
+                    <span className="option-icon">✓</span>
+                  )}
+                  {isAnswered && isSelectedOption && !isCorrectOption && (
+                    <span className="option-icon">✗</span>
+                  )}
+                </motion.button>
+              );
+            })}
           </div>
 
           <div className="quiz-actions">
+            {isAnswered && (
+              <motion.div 
+                className={`answer-feedback ${Number(selectedAnswer) === Number(questions[currentQuestion].correctAnswer) ? 'feedback-correct' : 'feedback-incorrect'}`}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                {Number(selectedAnswer) === Number(questions[currentQuestion].correctAnswer) ? (
+                  <>
+                    <span className="feedback-icon">🎉</span>
+                    <span className="feedback-text">Correct! +₹100</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="feedback-icon">❌</span>
+                    <span className="feedback-text">Incorrect! Correct answer was {String.fromCharCode(65 + Number(questions[currentQuestion].correctAnswer))}</span>
+                  </>
+                )}
+              </motion.div>
+            )}
             <button
               onClick={handleSubmit}
               disabled={selectedAnswer === null || isAnswered}

@@ -1,51 +1,190 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import './Round2.css';
 
 const Round2 = () => {
-  const [teamId] = useState(localStorage.getItem('teamId') || 'TEAM-001');
-  const [sector] = useState(localStorage.getItem('sector') || 'Lumina District');
-  const [purchasedComponents, setPurchasedComponents] = useState([]);
-  const [schematicSlots, setSchematicSlots] = useState([
-    { id: 1, label: 'Input Layer', component: null, correctType: 'sensor' },
-    { id: 2, label: 'Signal Processing', component: null, correctType: 'signal' },
-    { id: 3, label: 'Control Unit', component: null, correctType: 'controller' },
-    { id: 4, label: 'Communication', component: null, correctType: 'communication' },
-    { id: 5, label: 'Data Storage', component: null, correctType: 'cloud' },
-    { id: 6, label: 'Output Layer', component: null, correctType: 'actuator' }
-  ]);
-  const [timeRemaining, setTimeRemaining] = useState(20 * 60); // 20 minutes
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [score, setScore] = useState(null);
+  const navigate = useNavigate();
+  const [teamId] = useState(localStorage.getItem('teamId') || null);
+  const [sector, setSector] = useState(localStorage.getItem('sector') || null);
+  const [purchasedComponents, setPurchasedComponents] = useState(() => {
+    const saved = localStorage.getItem('round2PurchasedComponents');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [schematicSlots, setSchematicSlots] = useState(() => {
+    const saved = localStorage.getItem('round2SchematicSlots');
+    return saved ? JSON.parse(saved) : [
+      { id: 1, label: 'Input Layer', component: null, correctType: 'sensor' },
+      { id: 2, label: 'Signal Processing', component: null, correctType: 'signal' },
+      { id: 3, label: 'Control Unit', component: null, correctType: 'controller' },
+      { id: 4, label: 'Communication', component: null, correctType: 'communication' },
+      { id: 5, label: 'Data Storage', component: null, correctType: 'cloud' },
+      { id: 6, label: 'Output Layer', component: null, correctType: 'actuator' }
+    ];
+  });
+  const [timeRemaining, setTimeRemaining] = useState(() => {
+    const saved = localStorage.getItem('round2TimeRemaining');
+    return saved ? parseInt(saved) : 20 * 60;
+  });
+  const [isSubmitted, setIsSubmitted] = useState(() => {
+    const saved = localStorage.getItem('round2IsSubmitted');
+    return saved === 'true';
+  });
+  const [score, setScore] = useState(() => {
+    const saved = localStorage.getItem('round2Score');
+    return saved ? parseInt(saved) : null;
+  });
   const [draggedComponent, setDraggedComponent] = useState(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [teamData, setTeamData] = useState(null);
+  const [showHint, setShowHint] = useState(() => {
+    const saved = localStorage.getItem('round2ShowHint');
+    return saved === 'true';
+  });
+
+  // Save state to localStorage whenever it changes
+  useEffect(() => {
+    if (purchasedComponents.length > 0) {
+      localStorage.setItem('round2PurchasedComponents', JSON.stringify(purchasedComponents));
+    }
+  }, [purchasedComponents]);
+
+  useEffect(() => {
+    localStorage.setItem('round2SchematicSlots', JSON.stringify(schematicSlots));
+  }, [schematicSlots]);
+
+  useEffect(() => {
+    localStorage.setItem('round2TimeRemaining', timeRemaining.toString());
+  }, [timeRemaining]);
+
+  useEffect(() => {
+    localStorage.setItem('round2IsSubmitted', isSubmitted.toString());
+  }, [isSubmitted]);
+
+  useEffect(() => {
+    if (score !== null) {
+      localStorage.setItem('round2Score', score.toString());
+    }
+  }, [score]);
+
+  useEffect(() => {
+    localStorage.setItem('round2ShowHint', showHint.toString());
+  }, [showHint]);
+
+  // Fetch team data and purchased components from backend
+  useEffect(() => {
+    // Check if team is registered
+    if (!teamId) {
+      navigate('/register');
+      return;
+    }
+
+    const fetchTeamData = async () => {
+      if (!teamId) {
+        setError('Team ID not found. Please register first.');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+
+        // Fetch team data to get purchased components from Round 1
+        const teamRes = await fetch(`http://localhost:5000/api/teams/${teamId}`);
+        const teamData = await teamRes.json();
+
+        if (!teamRes.ok) {
+          throw new Error(teamData.message || 'Failed to load team data');
+        }
+
+        setTeamData(teamData.data);
+        setSector(teamData.data.sector);
+
+        // Check if Round 1 completed
+        if (!teamData.data.round1.submitted) {
+          setError('Please complete Round 1 first before accessing Round 2.');
+          setLoading(false);
+          return;
+        }
+
+        // Extract purchased components from Round 1
+        const components = teamData.data.round1.purchasedComponents || [];
+        
+        if (components.length === 0) {
+          setError('No components found from Round 1. Please complete Round 1 first.');
+          setLoading(false);
+          return;
+        }
+
+        // Transform components to match frontend format
+        const transformedComponents = components.map((c, index) => ({
+          code: c.componentId,
+          name: c.name,
+          type: c.type,
+          icon: getIconForType(c.type),
+          price: c.price
+        }));
+
+        setPurchasedComponents(transformedComponents);
+
+        // Check if Round 2 already submitted
+        if (teamData.data.round2.submitted) {
+          // Load existing submission
+          const round2Data = teamData.data.round2;
+          setIsSubmitted(true);
+          setScore({
+            placementScore: round2Data.correctPlacements * 5,
+            timeScore: Math.max(0, 20 - round2Data.timeTaken),
+            penalty: round2Data.penalties,
+            totalScore: round2Data.finalScore,
+            correctPlacements: round2Data.correctPlacements,
+            missingComponents: 6 - round2Data.correctPlacements,
+            wrongComponents: 0,
+            timeTaken: round2Data.timeTaken
+          });
+
+          // Reconstruct schematic from saved data
+          if (round2Data.schematic && round2Data.schematic.length === 6) {
+            setSchematicSlots(prev => prev.map((slot, index) => ({
+              ...slot,
+              component: round2Data.schematic[index] ? {
+                name: round2Data.schematic[index].componentName,
+                type: round2Data.schematic[index].componentType,
+                icon: getIconForType(round2Data.schematic[index].componentType)
+              } : null
+            })));
+          }
+        }
+
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError(err.message);
+        setLoading(false);
+      }
+    };
+
+    fetchTeamData();
+  }, [teamId, navigate]);
+
+  // Helper function to get icon for component type
+  const getIconForType = (type) => {
+    const icons = {
+      sensor: '📡',
+      signal: '⚡',
+      controller: '🧠',
+      communication: '📶',
+      cloud: '☁️',
+      actuator: '🔧'
+    };
+    return icons[type] || '📦';
+  };
 
   // Correct component flow
-  const correctFlow = ['sensor', 'signal', 'controller', 'communication', 'cloud', 'actuator'];
-
-  // Load purchased components from Round 1
-  useEffect(() => {
-    const purchases = JSON.parse(localStorage.getItem('purchases') || '[]');
-    
-    // If no purchases found, use test components for demo
-    if (purchases.length === 0) {
-      const testComponents = [
-        { code: 'SENSOR1', name: 'Multi-Sensor Module', icon: '📡', type: 'sensor', price: 300 },
-        { code: 'SIGNAL1', name: 'Signal Conditioning Unit', icon: '⚡', type: 'signal', price: 200 },
-        { code: 'MCU1', name: 'Microcontroller Board', icon: '🧠', type: 'controller', price: 400 },
-        { code: 'COMM1', name: 'WiFi Module', icon: '📶', type: 'communication', price: 250 },
-        { code: 'CLOUD1', name: 'Cloud Database Token', icon: '☁️', type: 'cloud', price: 350 },
-        { code: 'ACT1', name: 'Relay Actuator', icon: '🔌', type: 'actuator', price: 200 }
-      ];
-      setPurchasedComponents(testComponents);
-      // Store test components for later use
-      localStorage.setItem('purchases', JSON.stringify(testComponents));
-    } else {
-      setPurchasedComponents(purchases);
-    }
-  }, []);
-
+  
   // Timer
   useEffect(() => {
     if (isSubmitted || timeRemaining <= 0) return;
@@ -57,12 +196,16 @@ const Round2 = () => {
           handleAutoSubmit();
           return 0;
         }
+        // Show hint after 10 minutes (when 10 minutes remain)
+        if (prev === 10 * 60 && !showHint) {
+          setShowHint(true);
+        }
         return prev - 1;
       });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [timeRemaining, isSubmitted]);
+  }, [timeRemaining, isSubmitted, showHint]);
 
   // Scroll to top handler
   useEffect(() => {
@@ -149,24 +292,125 @@ const Round2 = () => {
     };
   };
 
-  const handleAutoSubmit = () => {
-    const scoreData = calculateScore();
-    setScore(scoreData);
-    setIsSubmitted(true);
-    
-    // Store score
-    const round2Score = scoreData.totalScore;
-    localStorage.setItem('round2Score', round2Score);
-    localStorage.setItem('round2Details', JSON.stringify(scoreData));
-  };
+  const handleAutoSubmit = async () => {
+    if (!teamId) {
+      alert('Team ID not found. Please register first.');
+      return;
+    }
 
-  const handleSubmit = () => {
-    if (window.confirm('Are you sure you want to submit? You cannot change your schematic after submission.')) {
-      handleAutoSubmit();
+    try {
+      const timeTaken = Math.ceil((20 * 60 - timeRemaining) / 60);
+
+      // Prepare schematic data for backend
+      const schematic = schematicSlots.map(slot => ({
+        componentId: slot.component?.code || null,
+        componentName: slot.component?.name || null,
+        componentType: slot.component?.type || null
+      }));
+
+      // Submit to backend
+      const res = await fetch('http://localhost:5000/api/round2/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          teamId,
+          schematic,
+          timeTaken
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to submit schematic');
+      }
+
+      // Check if schematic is correct
+      if (data.data.isAllCorrect) {
+        // Correct schematic - proceed to Round 3
+        setScore({
+          totalScore: data.data.finalScore,
+          correctPlacements: data.data.correctPlacements,
+          timeTaken: data.data.timeTaken,
+          timeBonus: data.data.timeBonus
+        });
+        setIsSubmitted(true);
+        
+        // Store data
+        localStorage.setItem('round2Score', data.data.finalScore);
+        
+        alert('Perfect! All components are correctly arranged. Proceeding to Round 3...');
+        setTimeout(() => {
+          navigate('/round3');
+        }, 2000);
+      } else {
+        // Incorrect schematic - allow retry
+        alert(`${data.data.correctPlacements} out of 6 components are correct. Please rearrange and try again!`);
+        // Don't submit, let them try again
+      }
+
+    } catch (err) {
+      console.error('Error submitting schematic:', err);
+      alert('Failed to submit schematic: ' + err.message);
     }
   };
 
+  const handleSubmit = () => {
+    if (!isAllSlotsValid) {
+      alert('Please fill all slots before submitting!');
+      return;
+    }
+    handleAutoSubmit();
+  };
+
   const isAllSlotsValid = schematicSlots.every(slot => slot.component !== null);
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="round2-container">
+        <div className="round2-header">
+          <h1>⚙️ ROUND 2: SYSTEM GENESIS</h1>
+          <p className="round2-subtitle">Loading...</p>
+        </div>
+        <div style={{ textAlign: 'center', padding: '2rem', color: '#fff' }}>
+          <div className="loading-spinner" style={{ fontSize: '2rem' }}>⚙️</div>
+          <p>Loading your components...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="round2-container">
+        <div className="round2-header">
+          <h1>⚙️ ROUND 2: SYSTEM GENESIS</h1>
+          <p className="round2-subtitle" style={{ color: '#ff6b6b' }}>Error</p>
+        </div>
+        <div style={{ textAlign: 'center', padding: '2rem', color: '#fff' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+          <h3 style={{ color: '#ff6b6b' }}>Failed to Load Round 2</h3>
+          <p>{error}</p>
+          <button 
+            onClick={() => window.location.href = '/round1'} 
+            style={{ marginTop: '1rem', padding: '0.5rem 1rem', cursor: 'pointer', marginRight: '0.5rem' }}
+          >
+            Go to Round 1
+          </button>
+          <button 
+            onClick={() => window.location.reload()} 
+            style={{ marginTop: '1rem', padding: '0.5rem 1rem', cursor: 'pointer' }}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="round2-container">
@@ -214,12 +458,7 @@ const Round2 = () => {
               <li>Time bonus: <strong>20 - minutes taken</strong></li>
               <li>Complete within 20 minutes</li>
             </ul>
-            <div className="cheatsheet">
-              <h4>💡 Correct Flow:</h4>
-              <div className="flow-hint">
-                Sensor → Signal Conditioning → Controller → Communication → Cloud/DB → Actuator
-              </div>
-            </div>
+            
           </motion.div>
 
           {/* Component Palette */}
@@ -263,38 +502,80 @@ const Round2 = () => {
             transition={{ delay: 0.4 }}
           >
             <h3>🔧 IoT System Schematic</h3>
-            <div className="schematic-flow">
-              {schematicSlots.map((slot, index) => (
-                <div key={slot.id} className="slot-container">
-                  <motion.div
-                    className={`schematic-slot ${slot.component ? 'filled' : 'empty'}`}
-                    onDragOver={handleDragOver}
-                    onDrop={() => handleDrop(slot.id)}
-                    whileHover={{ scale: slot.component ? 1 : 1.02 }}
-                  >
-                    <div className="slot-label">{slot.label}</div>
-                    {slot.component ? (
-                      <div className={`placed-component ${slot.component.type}`}>
-                        <div className="component-icon">{slot.component.icon}</div>
-                        <div className="component-name">{slot.component.name}</div>
-                        <button 
-                          className="remove-btn"
-                          onClick={() => handleRemoveComponent(slot.id)}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="empty-slot-placeholder">
-                        Drop component here
-                      </div>
-                    )}
-                  </motion.div>
-                  {index < schematicSlots.length - 1 && (
-                    <div className="flow-arrow">→</div>
-                  )}
+
+            {/* Hint - Appears after 10 minutes */}
+            {showHint && (
+              <motion.div 
+                className="schematic-hint"
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <div className="hint-header">
+                  <span className="hint-icon">💡</span>
+                  <span className="hint-title">Component Flow Hint</span>
                 </div>
-              ))}
+                <div className="hint-content">
+                  <div className="hint-flow">
+                    <span className="hint-step">Sensor</span>
+                    <span className="hint-arrow">→</span>
+                    <span className="hint-step">Signal</span>
+                    <span className="hint-arrow">→</span>
+                    <span className="hint-step">Controller</span>
+                    <span className="hint-arrow">→</span>
+                    <span className="hint-step">Communication</span>
+                    <span className="hint-arrow">→</span>
+                    <span className="hint-step">Cloud</span>
+                    <span className="hint-arrow">→</span>
+                    <span className="hint-step">Actuator</span>
+                  </div>
+                  <p className="hint-note">
+                    💡 Arrange your components in the correct order to proceed!
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
+            <div className="schematic-flow">
+              {schematicSlots.map((slot, index) => {
+                // Check if component is correctly placed
+                const isCorrect = slot.component && slot.component.type === slot.correctType;
+                const isIncorrect = slot.component && slot.component.type !== slot.correctType;
+                
+                return (
+                  <div key={slot.id} className="slot-container">
+                    <motion.div
+                      className={`schematic-slot ${slot.component ? 'filled' : 'empty'} ${isCorrect ? 'correct-placement' : ''} ${isIncorrect ? 'incorrect-placement' : ''}`}
+                      onDragOver={handleDragOver}
+                      onDrop={() => handleDrop(slot.id)}
+                      whileHover={{ scale: slot.component ? 1 : 1.02 }}
+                    >
+                      <div className="slot-label">{slot.label}</div>
+                      {slot.component ? (
+                        <div className={`placed-component ${slot.component.type}`}>
+                          <div className="component-icon">{slot.component.icon}</div>
+                          <div className="component-name">{slot.component.name}</div>
+                          {isCorrect && <div className="validity-indicator correct">✓</div>}
+                          {isIncorrect && <div className="validity-indicator incorrect">✗</div>}
+                          <button 
+                            className="remove-btn"
+                            onClick={() => handleRemoveComponent(slot.id)}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="empty-slot-placeholder">
+                          Drop component here
+                        </div>
+                      )}
+                    </motion.div>
+                    {index < schematicSlots.length - 1 && (
+                      <div className="flow-arrow">→</div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             <div className="submit-section">
@@ -303,8 +584,11 @@ const Round2 = () => {
                 onClick={handleSubmit}
                 disabled={!isAllSlotsValid}
               >
-                {isAllSlotsValid ? '✓ Submit Schematic' : '⚠ Fill All Slots to Submit'}
+                {isAllSlotsValid ? '🎯 Check Schematic & Submit' : '⚠ Fill All Slots to Submit'}
               </button>
+              <p className="submit-hint">
+                You can submit multiple times until all components are correctly arranged!
+              </p>
             </div>
           </motion.div>
         </div>

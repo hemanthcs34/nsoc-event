@@ -12,7 +12,14 @@ const Landing = () => {
   const navigate = useNavigate();
 
   const handleEnterSimulation = () => {
-    navigate('/round1');
+    // Check if team is registered
+    const teamId = localStorage.getItem('teamId');
+    if (teamId) {
+      navigate('/round1');
+    } else {
+      // Redirect to registration if not registered
+      navigate('/register');
+    }
   };
 
   const handleRegister = () => {

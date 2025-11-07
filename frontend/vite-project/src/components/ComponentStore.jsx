@@ -50,29 +50,38 @@ const ComponentStore = ({ components, initialBalance, onPurchaseComplete }) => {
       return;
     }
 
+    // Validate that we have exactly 6 components for first purchase
+    const totalComponents = purchasedComponents.length + cart.length;
+    
+    if (purchasedComponents.length === 0 && totalComponents !== 6) {
+      setWarningMessage(`⚠️ You must purchase exactly 6 components for initial purchase! Currently: ${totalComponents}`);
+      setTimeout(() => setWarningMessage(''), 3000);
+      return;
+    }
+
     const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
     const newBalance = balance - cartTotal;
     
     setBalance(newBalance);
     setPurchasedComponents([...purchasedComponents, ...cart]);
+    const allComponents = [...purchasedComponents, ...cart];
     setCart([]);
     setShowConfirmation(true);
     setTimeout(() => setShowConfirmation(false), 3000);
 
-    // Check if all 6 components purchased
-    if (purchasedComponents.length + cart.length === 6) {
-      setTimeout(() => {
-        onPurchaseComplete({
-          components: [...purchasedComponents, ...cart],
-          remainingBalance: newBalance,
-          totalSpent: initialBalance - newBalance
-        });
-      }, 2000);
-    }
+    // Submit purchase to backend
+    setTimeout(() => {
+      onPurchaseComplete({
+        components: allComponents,
+        remainingBalance: newBalance,
+        totalSpent: initialBalance - newBalance
+      });
+    }, 2000);
   };
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price, 0);
   const totalPurchased = purchasedComponents.length;
+  const isFirstPurchase = purchasedComponents.length === 0;
 
   return (
     <div className="component-store">
@@ -85,10 +94,20 @@ const ComponentStore = ({ components, initialBalance, onPurchaseComplete }) => {
         <div className="purchase-progress">
           <span className="progress-label">Components Selected</span>
           <span className="progress-count">
-            {totalPurchased + cart.length} / 6
+            {totalPurchased + cart.length} {isFirstPurchase ? '/ 6' : ''}
           </span>
         </div>
       </div>
+
+      {/* Purchase Hint */}
+      {isFirstPurchase && (
+        <div className="purchase-hint">
+          <div className="hint-icon">💡</div>
+          <div className="hint-text">
+            <strong>Important:</strong> Select exactly 6 components wisely! Once purchased, you cannot buy more. You'll arrange them in Round 2.
+          </div>
+        </div>
+      )}
 
       {/* Warning Message */}
       <AnimatePresence>

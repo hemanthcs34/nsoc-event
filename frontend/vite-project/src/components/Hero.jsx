@@ -8,6 +8,15 @@ import './Hero.css';
  */
 const Hero = ({ onEnterSimulation, onRegister }) => {
   const [glitchActive, setGlitchActive] = useState(false);
+  const [teamName, setTeamName] = useState(null);
+
+  // Check if team is registered
+  useEffect(() => {
+    const storedTeamName = localStorage.getItem('teamName');
+    if (storedTeamName) {
+      setTeamName(storedTeamName);
+    }
+  }, []);
 
   // Trigger glitch effect periodically
   useEffect(() => {
@@ -96,11 +105,20 @@ const Hero = ({ onEnterSimulation, onRegister }) => {
 
         {/* Subtext */}
         <motion.div className="hero-description" variants={itemVariants}>
-          <p>Core systems offline. Energy links broken.</p>
-          <p>
-            Only those who understand circuits, logic, and code can restore the
-            robotic pulse of Neurovia.
-          </p>
+          {teamName ? (
+            <>
+              <p className="welcome-back">Welcome back, <strong>{teamName}</strong>! 🎮</p>
+              <p>Your progress has been saved. Continue your mission to restore Neurovia.</p>
+            </>
+          ) : (
+            <>
+              <p>Core systems offline. Energy links broken.</p>
+              <p>
+                Only those who understand circuits, logic, and code can restore the
+                robotic pulse of Neurovia.
+              </p>
+            </>
+          )}
         </motion.div>
 
         {/* Call to Action Buttons */}
@@ -109,10 +127,10 @@ const Hero = ({ onEnterSimulation, onRegister }) => {
             className="btn-neon btn-primary"
             whileHover={{ y: -4, scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-              onClick={onRegister}
+            onClick={teamName ? onEnterSimulation : onRegister}
           >
             <span className="btn-icon">⚡</span>
-            Enter Simulation
+            {teamName ? 'Continue Mission' : 'Enter Simulation'}
           </motion.button>
           <motion.button
             className="btn-neon btn-secondary"

@@ -125,6 +125,20 @@
   margin: 0.5rem 0;
 }
 
+.hero-description .welcome-back {
+  font-size: 1.3rem;
+  background: linear-gradient(90deg, var(--glow-blue), var(--glow-purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 1rem;
+}
+
+.hero-description .welcome-back strong {
+  font-weight: 700;
+  text-shadow: 0 0 20px rgba(0, 230, 255, 0.6);
+}
+
 /* Call to Action Buttons */
 .hero-cta {
   display: flex;

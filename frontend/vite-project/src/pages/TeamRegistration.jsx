@@ -1,21 +1,22 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import './TeamRegistration.css'
 
 export default function TeamRegistration() {
+  const navigate = useNavigate()
   const [formData, setFormData] = useState({
     teamName: '',
-    teamId: '',
     members: [
-      { name: '', email: '', isIEEEMember: false },
-      { name: '', email: '', isIEEEMember: false },
-      { name: '', email: '', isIEEEMember: false },
-      { name: '', email: '', isIEEEMember: false }
-    ],
-    sector: ''
+      { name: '', email: '' },
+      { name: '', email: '' },
+      { name: '', email: '' },
+      { name: '', email: '' }
+    ]
   })
 
   const [submitted, setSubmitted] = useState(false)
+  const [registrationData, setRegistrationData] = useState(null)
   const [errors, setErrors] = useState({})
 
   const handleTeamChange = (e) => {
@@ -40,15 +41,15 @@ export default function TeamRegistration() {
     if (!formData.teamName.trim()) {
       newErrors.teamName = 'Team name is required'
     }
-    
-    if (!formData.teamId.trim()) {
-      newErrors.teamId = 'Team ID is required'
-    }
 
     // At least 3 members required
     const filledMembers = formData.members.filter(m => m.name.trim() && m.email.trim())
     if (filledMembers.length < 3) {
       newErrors.members = 'At least 3 team members required'
+    }
+    
+    if (filledMembers.length > 4) {
+      newErrors.members = 'Maximum 4 team members allowed'
     }
 
     // Validate emails
@@ -63,43 +64,67 @@ export default function TeamRegistration() {
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (validateForm()) {
       // Filter out empty members
       const finalData = {
         ...formData,
         members: formData.members.filter(m => m.name.trim() && m.email.trim())
       }
-      
-      console.log('Team Registration Data:', finalData)
-      // TODO: Send to backend API
-      
-      setSubmitted(true)
-      
-      // Reset form after 3 seconds
-      setTimeout(() => {
-        setSubmitted(false)
-        setFormData({
-          teamName: '',
-          teamId: '',
-          members: [
-            { name: '', email: '', isIEEEMember: false },
-            { name: '', email: '', isIEEEMember: false },
-            { name: '', email: '', isIEEEMember: false },
-            { name: '', email: '', isIEEEMember: false }
-          ],
-          sector: ''
+
+      try {
+        const res = await fetch('http://localhost:5000/api/teams/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(finalData)
         })
-      }, 3000)
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}))
+          console.error('Server error:', errData)
+          setErrors(prev => ({ 
+            ...prev, 
+            submit: errData.message || 'Failed to register team. Please try again.' 
+          }))
+          return
+        }
+
+        const data = await res.json()
+        console.log('Team Registration Response:', data)
+
+        // Save team ID, sector, and team name to localStorage for rounds
+        if (data.data && data.data.teamId) {
+          localStorage.setItem('teamId', data.data.teamId);
+        }
+        if (data.data && data.data.sector) {
+          localStorage.setItem('sector', data.data.sector);
+        }
+        if (data.data && data.data.teamName) {
+          localStorage.setItem('teamName', data.data.teamName);
+        }
+
+        setRegistrationData(data.data)
+        setSubmitted(true)
+
+        // Redirect to Round 1 after 3 seconds
+        setTimeout(() => {
+          navigate('/round1')
+        }, 3000)
+
+      } catch (error) {
+        console.error('Network error:', error)
+        setErrors(prev => ({ ...prev, submit: 'Network error. Please check your connection.' }))
+      }
     }
   }
 
   const calculateEntryFee = () => {
     const filledMembers = formData.members.filter(m => m.name.trim())
-    const nonIEEECount = filledMembers.filter(m => !m.isIEEEMember).length
-    return nonIEEECount * 20
+    return filledMembers.length * 20 // Example: ₹20 per member
   }
 
   return (
@@ -137,7 +162,7 @@ export default function TeamRegistration() {
         </motion.div>
 
         {/* Success Message */}
-        {submitted && (
+        {submitted && registrationData && (
           <motion.div 
             className="success-message"
             initial={{ scale: 0.8, opacity: 0 }}
@@ -146,7 +171,15 @@ export default function TeamRegistration() {
           >
             <div className="success-icon">✓</div>
             <h3>TEAM REGISTERED SUCCESSFULLY</h3>
-            <p>Access granted. Prepare for deployment...</p>
+            <p>Access granted. Redirecting to Round 1...</p>
+            <div style={{ marginTop: '1rem', fontSize: '0.95rem', opacity: 0.9 }}>
+              <p><strong>Team:</strong> {registrationData.teamName}</p>
+              <p><strong>Sector Assigned:</strong> {registrationData.sector}</p>
+              <p><strong>Members:</strong> {registrationData.memberCount}</p>
+              <p style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                Team ID: {registrationData.teamId}
+              </p>
+            </div>
           </motion.div>
         )}
 
@@ -179,21 +212,6 @@ export default function TeamRegistration() {
                   required
                 />
                 {errors.teamName && <span className="error-text">{errors.teamName}</span>}
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="teamId">Team ID *</label>
-                <input
-                  type="text"
-                  id="teamId"
-                  name="teamId"
-                  value={formData.teamId}
-                  onChange={handleTeamChange}
-                  placeholder="e.g., TECH-001"
-                  className={errors.teamId ? 'error' : ''}
-                  required
-                />
-                {errors.teamId && <span className="error-text">{errors.teamId}</span>}
               </div>
             </div>
           </div>
@@ -253,12 +271,20 @@ export default function TeamRegistration() {
           </div>
 
         
+          {/* Submit Error */}
+          {errors.submit && (
+            <div className="error-text" style={{ marginBottom: '1rem', textAlign: 'center' }}>
+              {errors.submit}
+            </div>
+          )}
+
           {/* Submit Button */}
           <motion.button
             type="submit"
             className="submit-button"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
+            onClick={onsubmit}
           >
             <span className="button-glow"></span>
             <span className="button-text">⚡ Initialize Team & Join Mission</span>
