@@ -17,17 +17,6 @@ services:
       - key: ADMIN_PASSWORD
         generateValue: true
 
-  - type: static
-    name: ieee-event-frontend
-    env: static
-    rootDir: frontend/vite-project
-    buildCommand: "npm install && npm run build"
-    staticPublishPath: dist
-    routes:
-      - type: rewrite
-        source: "/*"
-        destination: "/index.html"
-
 databases:
   - name: ieee-event-db
     databaseName: ieee_event
