@@ -8,12 +8,13 @@ export const registerTeam = async (req, res) => {
     const { teamName, members } = req.body;
 
     // Validation
-    if (!teamName || !members || members.length < 3 || members.length > 4) {
+      if (!teamName || !members || members.length < 1) {
       return res.status(400).json({
         success: false,
-        message: 'Team must have a name and 3-4 members'
+        message: 'Team must have a name and at least 1 member'
       });
     }
+
 
     // Check if team name already exists
     const existingTeam = await Team.findOne({ teamName });
