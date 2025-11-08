@@ -30,9 +30,9 @@ const teamSchema = new mongoose.Schema({
     type: [memberSchema],
     validate: {
       validator: function(members) {
-        return members.length >= 3 && members.length <= 4;
+        return members.length >= 1 ;
       },
-      message: 'Team must have 3-4 members'
+      message: 'Team must have at least 1 member'
     }
   },
   sector: {
