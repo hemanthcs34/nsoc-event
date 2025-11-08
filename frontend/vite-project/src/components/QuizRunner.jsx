@@ -3,11 +3,42 @@ import { motion, AnimatePresence } from 'framer-motion';
 import './QuizRunner.css';
 
 const QuizRunner = ({ questions, onComplete }) => {
-  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [currentQuestion, setCurrentQuestion] = useState(() => {
+    const saved = localStorage.getItem('quizCurrentQuestion');
+    return saved ? parseInt(saved) : 0;
+  });
   const [selectedAnswer, setSelectedAnswer] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(120); // 2 minutes per question
-  const [answers, setAnswers] = useState([]);
+  const [timeLeft, setTimeLeft] = useState(() => {
+    const saved = localStorage.getItem('quizTimeLeft');
+    return saved ? parseInt(saved) : 120;
+  });
+  const [answers, setAnswers] = useState(() => {
+    const saved = localStorage.getItem('quizAnswers');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [isAnswered, setIsAnswered] = useState(false);
+
+  // Save quiz progress to localStorage
+  useEffect(() => {
+    localStorage.setItem('quizCurrentQuestion', currentQuestion.toString());
+  }, [currentQuestion]);
+
+  useEffect(() => {
+    localStorage.setItem('quizTimeLeft', timeLeft.toString());
+  }, [timeLeft]);
+
+  useEffect(() => {
+    if (answers.length > 0) {
+      localStorage.setItem('quizAnswers', JSON.stringify(answers));
+    }
+  }, [answers]);
+
+  // Clear quiz data when quiz is complete
+  const clearQuizProgress = () => {
+    localStorage.removeItem('quizCurrentQuestion');
+    localStorage.removeItem('quizTimeLeft');
+    localStorage.removeItem('quizAnswers');
+  };
 
   useEffect(() => {
     if (timeLeft > 0 && !isAnswered) {
@@ -57,7 +88,9 @@ const QuizRunner = ({ questions, onComplete }) => {
       setTimeLeft(120);
       setIsAnswered(false);
     } else {
-      // Quiz complete
+      // Quiz complete - clear progress from localStorage
+      clearQuizProgress();
+      
       const correctCount = newAnswers.filter(a => a.correct).length;
       const earnedAmount = correctCount * 100;
       onComplete({

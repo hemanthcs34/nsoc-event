@@ -43,35 +43,42 @@ export const submitSchematic = async (req, res) => {
 
     // Calculate correct placements
     let correctPlacements = 0;
+    let filledSlots = 0;
+    
     schematic.forEach((slot, index) => {
-      if (slot && slot.componentType === CORRECT_FLOW[index]) {
-        correctPlacements++;
+      // Count filled slots (non-null components)
+      if (slot && slot.componentType) {
+        filledSlots++;
+        // Check if component is in correct position
+        if (slot.componentType === CORRECT_FLOW[index]) {
+          correctPlacements++;
+        }
       }
     });
 
-    // Calculate score based on time and correctness
-    // Formula: Base score (if all correct) + Time bonus - penalties
-    const isAllCorrect = correctPlacements === 6;
-    const baseScore = isAllCorrect ? 100 : 0; // Only get base score if all correct
+    // Calculate score based on placements and time
+    // Award points for each correct placement (even if not all slots filled)
+    const pointsPerCorrectPlacement = 15; // 15 points per correct component
+    const placementScore = correctPlacements * pointsPerCorrectPlacement; // Max 90 points (6 * 15)
     
-    // Time bonus: Max 20 points (faster = more points)
-    // If completed in < 5 min: +20 points
-    // If completed in < 10 min: +15 points
-    // If completed in < 15 min: +10 points
-    // If completed in < 20 min: +5 points
+    // Time bonus: Max 10 points (faster = more points)
+    // ONLY awarded if at least one component is correctly placed
     let timeBonus = 0;
-    if (timeTaken < 5) {
-      timeBonus = 20;
-    } else if (timeTaken < 10) {
-      timeBonus = 15;
-    } else if (timeTaken < 15) {
-      timeBonus = 10;
-    } else if (timeTaken < 20) {
-      timeBonus = 5;
+    if (correctPlacements > 0) {
+      if (timeTaken < 5) {
+        timeBonus = 10;
+      } else if (timeTaken < 10) {
+        timeBonus = 8;
+      } else if (timeTaken < 15) {
+        timeBonus = 5;
+      } else if (timeTaken < 20) {
+        timeBonus = 3;
+      }
     }
 
-    // Only award time bonus if schematic is correct
-    const finalScore = isAllCorrect ? baseScore + timeBonus : 0;
+    // Final score calculation
+    const finalScore = placementScore + timeBonus; // Max 100 points (90 + 10)
+    const isAllCorrect = correctPlacements === 6;
 
     // Update team Round 2 data
     team.round2.schematic = schematic;
@@ -86,16 +93,18 @@ export const submitSchematic = async (req, res) => {
     res.status(200).json({
       success: true,
       message: isAllCorrect 
-        ? 'Perfect! Schematic is correct. Proceed to Round 3!'
-        : 'Schematic submitted but not all components are in correct order. Please try again!',
+        ? 'Perfect! All components are correctly placed!' 
+        : `Schematic submitted! ${correctPlacements} out of ${filledSlots} placed components are correct.`,
       data: {
         correctPlacements,
-        totalComponents: 6,
+        filledSlots,
+        totalSlots: 6,
         timeTaken,
         timeBonus,
+        placementScore,
         finalScore,
         isAllCorrect,
-        canProceed: isAllCorrect
+        canProceed: true // Always allow proceeding to Round 3
       }
     });
   } catch (error) {

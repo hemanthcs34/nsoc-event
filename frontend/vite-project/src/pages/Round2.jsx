@@ -44,6 +44,18 @@ const Round2 = () => {
     const saved = localStorage.getItem('round2ShowHint');
     return saved === 'true';
   });
+  const [availableComponents, setAvailableComponents] = useState([]);
+  const [remainingBalance, setRemainingBalance] = useState(() => {
+    const saved = localStorage.getItem('round2RemainingBalance');
+    return saved ? parseInt(saved) : 0;
+  });
+  const [showComponentStore, setShowComponentStore] = useState(false);
+  const [selectedComponentToBuy, setSelectedComponentToBuy] = useState(null);
+
+  // Save additional state to localStorage
+  useEffect(() => {
+    localStorage.setItem('round2RemainingBalance', remainingBalance.toString());
+  }, [remainingBalance]);
 
   // Save state to localStorage whenever it changes
   useEffect(() => {
@@ -129,6 +141,30 @@ const Round2 = () => {
         }));
 
         setPurchasedComponents(transformedComponents);
+
+        // Get remaining balance from Round 1
+        const balance = teamData.data.round1.totalBalance || 0;
+        setRemainingBalance(balance);
+
+        // Fetch all available components for additional purchase
+        const componentsRes = await fetch('http://localhost:5000/api/round1/components');
+        const componentsData = await componentsRes.json();
+        
+        if (componentsRes.ok) {
+          const allComponents = componentsData.data.map(c => ({
+            code: c._id,
+            name: c.name,
+            type: c.type,
+            icon: getIconForType(c.type),
+            price: c.price,
+            description: c.description
+          }));
+          
+          // Filter out already purchased components
+          const purchasedIds = transformedComponents.map(c => c.code);
+          const available = allComponents.filter(c => !purchasedIds.includes(c.code));
+          setAvailableComponents(available);
+        }
 
         // Check if Round 2 already submitted
         if (teamData.data.round2.submitted) {
@@ -298,6 +334,15 @@ const Round2 = () => {
       return;
     }
 
+    // Count filled slots
+    const filledSlots = schematicSlots.filter(slot => slot.component !== null).length;
+    
+    // Check if at least some components are placed
+    if (filledSlots === 0) {
+      alert('Please place at least one component before submitting!');
+      return;
+    }
+
     try {
       const timeTaken = Math.ceil((20 * 60 - timeRemaining) / 60);
 
@@ -327,29 +372,44 @@ const Round2 = () => {
         throw new Error(data.message || 'Failed to submit schematic');
       }
 
-      // Check if schematic is correct
+      // Save score and submission status
+      setScore({
+        totalScore: data.data.finalScore,
+        correctPlacements: data.data.correctPlacements,
+        timeTaken: data.data.timeTaken,
+        timeBonus: data.data.timeBonus || 0,
+        filledSlots: filledSlots
+      });
+      setIsSubmitted(true);
+      
+      // Store data
+      localStorage.setItem('round2Score', data.data.finalScore.toString());
+      localStorage.setItem('round2IsSubmitted', 'true');
+      
+      // Create detailed result message
+      let resultMessage = '';
       if (data.data.isAllCorrect) {
-        // Correct schematic - proceed to Round 3
-        setScore({
-          totalScore: data.data.finalScore,
-          correctPlacements: data.data.correctPlacements,
-          timeTaken: data.data.timeTaken,
-          timeBonus: data.data.timeBonus
-        });
-        setIsSubmitted(true);
-        
-        // Store data
-        localStorage.setItem('round2Score', data.data.finalScore);
-        
-        alert('Perfect! All components are correctly arranged. Proceeding to Round 3...');
-        setTimeout(() => {
-          navigate('/round3');
-        }, 2000);
+        resultMessage = `Perfect! All components are correctly arranged!\n\n`;
       } else {
-        // Incorrect schematic - allow retry
-        alert(`${data.data.correctPlacements} out of 6 components are correct. Please rearrange and try again!`);
-        // Don't submit, let them try again
+        resultMessage = `Schematic submitted!\n${data.data.correctPlacements} out of ${filledSlots} placed components are correct.\n\n`;
       }
+      
+      resultMessage += `Placement Score: ${data.data.correctPlacements} × 15 = ${data.data.correctPlacements * 15} pts\n`;
+      
+      if (data.data.correctPlacements > 0) {
+        resultMessage += `Time Bonus: +${data.data.timeBonus || 0} pts\n`;
+      } else {
+        resultMessage += `Time Bonus: 0 pts (need at least 1 correct component)\n`;
+      }
+      
+      resultMessage += `\nTotal Score: ${data.data.finalScore} / 100\n\nProceeding to Round 3...`;
+      
+      alert(resultMessage);
+      
+      // Proceed to Round 3 after showing results
+      setTimeout(() => {
+        navigate('/round3');
+      }, 3000);
 
     } catch (err) {
       console.error('Error submitting schematic:', err);
@@ -358,11 +418,58 @@ const Round2 = () => {
   };
 
   const handleSubmit = () => {
-    if (!isAllSlotsValid) {
-      alert('Please fill all slots before submitting!');
+    // Count filled slots
+    const filledSlots = schematicSlots.filter(slot => slot.component !== null).length;
+    
+    if (filledSlots === 0) {
+      alert('Please place at least one component before submitting!');
       return;
     }
+
+    // Warn if not all slots are filled
+    if (filledSlots < 6) {
+      const proceed = window.confirm(
+        `You have only filled ${filledSlots} out of 6 slots.\n` +
+        `Empty slots will count as incorrect.\n\n` +
+        `Do you want to submit anyway and proceed to Round 3?`
+      );
+      if (!proceed) return;
+    }
+    
     handleAutoSubmit();
+  };
+
+  const handleBuyComponent = async (component) => {
+    if (remainingBalance < component.price) {
+      alert(`Insufficient balance! You have ₹${remainingBalance} but need ₹${component.price}`);
+      return;
+    }
+
+    if (window.confirm(`Buy ${component.name} for ₹${component.price}?`)) {
+      try {
+        // Add component to purchased list
+        const newComponent = {
+          code: component.code,
+          name: component.name,
+          type: component.type,
+          icon: component.icon,
+          price: component.price
+        };
+
+        setPurchasedComponents(prev => [...prev, newComponent]);
+        setRemainingBalance(prev => prev - component.price);
+        
+        // Remove from available components
+        setAvailableComponents(prev => prev.filter(c => c.code !== component.code));
+        
+        alert(`Successfully purchased ${component.name}!`);
+        setShowComponentStore(false);
+        setSelectedComponentToBuy(null);
+      } catch (err) {
+        console.error('Error purchasing component:', err);
+        alert('Failed to purchase component: ' + err.message);
+      }
+    }
   };
 
   const isAllSlotsValid = schematicSlots.every(slot => slot.component !== null);
@@ -451,11 +558,12 @@ const Round2 = () => {
           >
             <h3>📋 Instructions</h3>
             <ul>
-              <li>Drag and drop your purchased components into the correct slots</li>
+              <li>Drag and drop your purchased components into the schematic slots</li>
               <li>Build the correct IoT data flow from input to output</li>
-              <li>Each correct placement earns <strong>5 points</strong></li>
-              <li>Missing or wrong components cost <strong>-5 points</strong> each</li>
-              <li>Time bonus: <strong>20 - minutes taken</strong></li>
+              <li>Each correct placement earns <strong>15 points</strong> (max 90 points)</li>
+              <li>Time bonus: Up to <strong>10 points</strong> (requires at least 1 correct component)</li>
+              <li><strong>You can submit with partial completion!</strong> Empty slots won't earn points.</li>
+              <li>You can purchase more components if you have remaining balance</li>
               <li>Complete within 20 minutes</li>
             </ul>
             
@@ -468,7 +576,63 @@ const Round2 = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <h3>🧩 Your Components</h3>
+            <div className="palette-header">
+              <h3>🧩 Your Components</h3>
+              <div className="balance-info">
+                <span className="balance-label">Balance:</span>
+                <span className="balance-amount">₹{remainingBalance}</span>
+              </div>
+            </div>
+            
+            {/* Buy More Components Button */}
+            {remainingBalance > 0 && availableComponents.length > 0 && (
+              <div className="buy-more-section">
+                <button 
+                  className="buy-more-btn"
+                  onClick={() => setShowComponentStore(!showComponentStore)}
+                >
+                  {showComponentStore ? '🔼 Hide Component Store' : '🛒 Buy More Components'}
+                </button>
+              </div>
+            )}
+
+            {/* Component Store Dropdown */}
+            {showComponentStore && (
+              <motion.div 
+                className="component-store-dropdown"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <h4>💰 Available Components to Purchase</h4>
+                <div className="store-grid">
+                  {availableComponents
+                    .filter(c => c.price <= remainingBalance)
+                    .map((component, index) => (
+                      <div key={index} className={`store-component ${component.type}`}>
+                        <div className="component-icon">{component.icon}</div>
+                        <div className="component-name">{component.name}</div>
+                        <div className="component-type">{component.type}</div>
+                        <div className="component-price">₹{component.price}</div>
+                        <button 
+                          className="buy-btn"
+                          onClick={() => handleBuyComponent(component)}
+                        >
+                          Purchase
+                        </button>
+                      </div>
+                    ))}
+                  {availableComponents.filter(c => c.price <= remainingBalance).length === 0 && (
+                    <div className="no-affordable">
+                      <p>⚠️ No components available within your budget</p>
+                      <p className="hint">Current balance: ₹{remainingBalance}</p>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
             <div className="palette-grid">
               {purchasedComponents.length === 0 ? (
                 <div className="no-components">
@@ -579,16 +743,31 @@ const Round2 = () => {
             </div>
 
             <div className="submit-section">
-              <button 
-                className={`submit-btn ${isAllSlotsValid ? 'ready' : 'disabled'}`}
-                onClick={handleSubmit}
-                disabled={!isAllSlotsValid}
-              >
-                {isAllSlotsValid ? '🎯 Check Schematic & Submit' : '⚠ Fill All Slots to Submit'}
-              </button>
-              <p className="submit-hint">
-                You can submit multiple times until all components are correctly arranged!
-              </p>
+              {(() => {
+                const filledSlots = schematicSlots.filter(slot => slot.component !== null).length;
+                const hasComponents = filledSlots > 0;
+                
+                return (
+                  <>
+                    <button 
+                      className={`submit-btn ${hasComponents ? 'ready' : 'disabled'}`}
+                      onClick={handleSubmit}
+                      disabled={!hasComponents}
+                    >
+                      {hasComponents 
+                        ? `🎯 Submit & Proceed (${filledSlots}/6 filled)` 
+                        : '⚠ Place at least 1 component'}
+                    </button>
+                    <p className="submit-hint">
+                      {filledSlots === 6 
+                        ? 'All slots filled! Submit to proceed to Round 3.'
+                        : filledSlots > 0
+                        ? `${filledSlots}/6 slots filled. You can submit now, but empty slots count as incorrect.`
+                        : 'Place components in the slots above, then submit to proceed.'}
+                    </p>
+                  </>
+                );
+              })()}
             </div>
           </motion.div>
         </div>
@@ -601,26 +780,26 @@ const Round2 = () => {
           <h2>📊 Round 2 Results</h2>
           <div className="score-breakdown">
             <div className="score-item">
-              <span>Correct Placements:</span>
+              <span>Components Placed:</span>
               <span className="score-value">
-                {score.correctPlacements} × 5 = <strong>+{score.placementScore}</strong>
+                <strong>{score.filledSlots || 0} / 6 slots</strong>
               </span>
             </div>
             <div className="score-item">
-              <span>Time Taken:</span>
+              <span>Correct Placements:</span>
               <span className="score-value">
-                {score.timeTaken} min → <strong>+{score.timeScore}</strong>
+                {score.correctPlacements} × 15 pts = <strong>+{score.correctPlacements * 15}</strong>
               </span>
             </div>
-            <div className="score-item penalty">
-              <span>Missing/Wrong Components:</span>
+            <div className="score-item">
+              <span>Time Bonus:</span>
               <span className="score-value">
-                {score.missingComponents + score.wrongComponents} × 5 = <strong>-{score.penalty}</strong>
+                {score.timeTaken} min → <strong>+{score.timeBonus || 0} pts</strong>
               </span>
             </div>
             <div className="score-total">
               <span>Total Round 2 Score:</span>
-              <span className="total-value">{score.totalScore}</span>
+              <span className="total-value">{score.totalScore} / 100</span>
             </div>
           </div>
 
@@ -636,10 +815,12 @@ const Round2 = () => {
                       {slot.component ? slot.component.icon : '❌'}
                     </div>
                     <div className="component-name">
-                      {slot.component ? slot.component.name : 'Missing'}
+                      {slot.component ? slot.component.name : 'Empty Slot'}
                     </div>
                     <div className="validation-status">
-                      {slot.component?.type === slot.correctType ? '✓ Correct' : '✗ Wrong/Missing'}
+                      {slot.component 
+                        ? (slot.component.type === slot.correctType ? '✓ Correct' : '✗ Wrong Position')
+                        : '⚠ Not Filled'}
                     </div>
                   </div>
                   {index < schematicSlots.length - 1 && <span className="flow-arrow">→</span>}
@@ -650,7 +831,7 @@ const Round2 = () => {
 
           <button 
             className="next-round-btn"
-            onClick={() => window.location.href = '/round3'}
+            onClick={() => navigate('/round3')}
           >
             Proceed to Round 3: Neural Logic →
           </button>
