@@ -36,7 +36,7 @@ export const getChallengeLink = async (req, res) => {
       data: {
         sector: team.sector,
         unstopLink,
-        timeLimit: 25 // minutes
+        timeLimit: 30 // minutes
       }
     });
   } catch (error) {
@@ -86,16 +86,16 @@ export const submitRound3 = async (req, res) => {
       });
     }
 
-    if (timeTaken < 0 || timeTaken > 25) {
+    if (timeTaken < 0 || timeTaken > 30) {
       return res.status(400).json({
         success: false,
-        message: 'Time taken must be between 0 and 25 minutes'
+        message: 'Time taken must be between 0 and 30 minutes'
       });
     }
 
     // Calculate score
     // Formula: testCasesPassed + (25 - timeTaken)
-    const timeBonus = Math.max(0, 25 - timeTaken);
+    const timeBonus = Math.max(0, 30 - timeTaken);
     const finalScore = testCasesPassed + timeBonus;
 
     // Update team Round 3 data
