@@ -47,7 +47,7 @@ export const registerTeam = async (req, res) => {
     
 
     // Assign sector randomly
-    const sectors = ['Lumina District', 'HydroCore', 'AeroHab'];
+    const sectors = ['Lumina District', 'HydroCore'];
     const sector = sectors[Math.floor(Math.random() * sectors.length)];
 
     // Create team
