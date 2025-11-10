@@ -6,6 +6,77 @@ const CORRECT_FLOW = ['sensor', 'signal', 'controller', 'communication', 'cloud'
 // @desc    Submit Round 2 schematic
 // @route   POST /api/round2/submit
 // @access  Public
+const SECTOR_INFO = {
+  'Lumina District': {
+    title: 'Smart Street Lighting System',
+    failure: 'The light-sensing system misreads day as night, causing power surges.',
+    universeFlaw: "The planet's day-night cycle changes every 4 hours — sensors must adapt dynamically.",
+    icon: '💡',
+    components: {
+      sensor: 'Light Sensor',
+      signal: 'Signal Conditioning',
+      controller: 'Controller',
+      communication: 'Communication Interface',
+      cloud: 'Cloud/Local Log',
+      actuator: 'LED Streetlight / Relay Driver'
+    }
+  },
+  'HydroCore': {
+    title: 'Smart Water Distribution',
+    failure: 'Reservoir valves malfunction due to corrupted pressure data, leading to shortages.',
+    universeFlaw: 'Gravity fluctuates — water flows unpredictably upward or sideways.',
+    icon: '💧',
+    components: {
+      sensor: 'Pressure Sensor',
+      signal: 'Signal Conditioning',
+      controller: 'Controller',
+      communication: 'Communication Interface',
+      cloud: 'Cloud/Local Log',
+      actuator: 'Pump/Valve Driver'
+    }
+  }
+};
+
+// @desc    Get sector information for a team
+// @route   GET /api/round2/sector-info/:teamId
+// @access  Public
+export const getSectorInfo = async (req, res) => {
+  try {
+    const team = await Team.findById(req.params.teamId);
+
+    if (!team) {
+      return res.status(404).json({
+        success: false,
+        message: 'Team not found'
+      });
+    }
+
+    const sector = team.sector;
+    const sectorData = SECTOR_INFO[sector];
+
+    if (!sectorData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sector information not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        sector,
+        ...sectorData
+      }
+    });
+  } catch (error) {
+    console.error('Get sector info error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Error fetching sector information'
+    });
+  }
+};
+
 export const submitSchematic = async (req, res) => {
   try {
     const { teamId, schematic, timeTaken } = req.body;
