@@ -100,7 +100,7 @@ export const submitRound3 = async (req, res) => {
 
     // Update team Round 3 data
     team.round3.unstopLink = UNSTOP_LINKS[team.sector];
-    team.round3.testCasesPassed = testCasesPassed;
+    team.round3.testCasesPassed = 10*testCasesPassed;
     team.round3.timeTaken = timeTaken;
     team.round3.finalScore = finalScore;
     team.round3.submitted = true;
