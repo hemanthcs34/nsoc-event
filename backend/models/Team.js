@@ -80,7 +80,7 @@ const teamSchema = new mongoose.Schema({
   // Round 3 Data
   round3: {
     unstopLink: { type: String },
-    testCasesPassed: { type: Number, default: 0, min: 0, max: 10 },
+    testCasesPassed: { type: Number, default: 0, min: 0, max: 100 },
     timeTaken: { type: Number, default: 0, min: 0, max: 25 }, // in minutes
     submitted: { type: Boolean, default: false },
     submittedAt: Date,
