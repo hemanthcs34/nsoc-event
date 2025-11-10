@@ -2,9 +2,9 @@ import Team from '../models/Team.js';
 
 // Unstop challenge links for each sector
 const UNSTOP_LINKS = {
-  'Lumina District': 'https://unstop.com/p/to-debug-the-iot-system-and-save-neurovia-national-institute-of-engineering-nie-mysuru-1592775',
-  'HydroCore': 'https://unstop.com/p/to-debug-the-iot-system-and-save-neurovia-national-institute-of-engineering-nie-mysuru-1592775',
-  'AeroHab': 'https://unstop.com/p/to-debug-the-iot-system-and-save-neurovia-national-institute-of-engineering-nie-mysuru-1592775'
+  'Lumina District': 'https://tinyurl.com/TechSymphony-Lumina',
+  'HydroCore': 'https://tinyurl.com/TechSymphony-Hydrocore',
+  
 };
 
 // @desc    Get Unstop challenge link for team's sector
